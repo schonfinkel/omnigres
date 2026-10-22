@@ -15,7 +15,7 @@ void xact_callback(omni_hook_handle *handle, XactEvent event) {
 }
 
 void planner_hook_fn(omni_hook_handle *handle, Query *parse, const char *query_string,
-                     int cursorOptions, ParamListInfo boundParams) {
+                     int cursorOptions, ParamListInfo boundParams OMNI_PLANNER_ES_PARAM) {
   hook_called[omni_hook_planner] = true;
 }
 

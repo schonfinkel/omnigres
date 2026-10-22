@@ -37,7 +37,7 @@ MODULE_FUNCTION void default_needs_fmgr(omni_hook_handle *handle, Oid fn_oid) {
 
 MODULE_FUNCTION void default_planner(omni_hook_handle *handle, Query *parse,
                                      const char *query_string, int cursorOptions,
-                                     ParamListInfo boundParams) {
+                                     ParamListInfo boundParams OMNI_PLANNER_ES_PARAM) {
   // standard_planner() scribbles the `parse` argument.
   // if there are successive calls to standard_planner(),
   // the scribbled `parse` argument is being passed.
@@ -45,9 +45,9 @@ MODULE_FUNCTION void default_planner(omni_hook_handle *handle, Query *parse,
   // other than looking through the source.
   handle->returns.PlannedStmt_value =
       saved_hooks[omni_hook_planner] == NULL
-          ? standard_planner(parse, query_string, cursorOptions, boundParams)
+          ? standard_planner(parse, query_string, cursorOptions, boundParams OMNI_PLANNER_ES_ARG)
           : ((planner_hook_type)saved_hooks[omni_hook_planner])(parse, query_string, cursorOptions,
-                                                                boundParams);
+                                                                boundParams OMNI_PLANNER_ES_ARG);
 }
 
 MODULE_FUNCTION void default_executor_start(omni_hook_handle *handle, QueryDesc *queryDesc,
@@ -175,8 +175,10 @@ MODULE_FUNCTION void omni_check_password_hook(const char *username, const char *
 }
 
 MODULE_FUNCTION PlannedStmt *omni_planner_hook(Query *parse, const char *query_string,
-                                               int cursorOptions, ParamListInfo boundParams) {
-  return iterate_hooks(planner, parse, query_string, cursorOptions, boundParams).PlannedStmt_value;
+                                               int cursorOptions,
+                                               ParamListInfo boundParams OMNI_PLANNER_ES_PARAM) {
+  return iterate_hooks(planner, parse, query_string, cursorOptions, boundParams OMNI_PLANNER_ES_ARG)
+      .PlannedStmt_value;
 }
 
 MODULE_FUNCTION void omni_executor_start_hook(QueryDesc *queryDesc, int eflags) {

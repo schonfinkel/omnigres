@@ -181,7 +181,8 @@ MODULE_FUNCTION void omni_check_password_hook(const char *username, const char *
 MODULE_FUNCTION void omni_executor_start_hook(QueryDesc *queryDesc, int eflags);
 
 MODULE_FUNCTION PlannedStmt *omni_planner_hook(Query *parse, const char *query_string,
-                                               int cursorOptions, ParamListInfo boundParams);
+                                               int cursorOptions,
+                                               ParamListInfo boundParams OMNI_PLANNER_ES_PARAM);
 
 MODULE_FUNCTION void omni_executor_run_hook(QueryDesc *queryDesc, ScanDirection direction,
                                             uint64 count
@@ -223,7 +224,7 @@ MODULE_FUNCTION void default_needs_fmgr(omni_hook_handle *handle, Oid fn_oid);
 
 MODULE_FUNCTION void default_planner(omni_hook_handle *handle, Query *parse,
                                      const char *query_string, int cursorOptions,
-                                     ParamListInfo boundParams);
+                                     ParamListInfo boundParams OMNI_PLANNER_ES_PARAM);
 
 MODULE_FUNCTION void default_executor_start(omni_hook_handle *handle, QueryDesc *queryDesc,
                                             int eflags);

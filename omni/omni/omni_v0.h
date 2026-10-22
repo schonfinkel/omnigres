@@ -202,9 +202,32 @@ typedef void (*omni_hook_check_password_t)(omni_hook_handle *handle, const char 
                                            Datum validuntil_time, bool validuntil_null);
 
 typedef void (*omni_hook_needs_fmgr_t)(omni_hook_handle *handle, Oid fn_oid);
+
+#if PG_MAJORVERSION_NUM >= 19
+struct ExplainState;
+/**
+ * Trailing planner hook parameter added in Postgres 19. Use it to declare
+ * planner hook functions that compile against every supported major.
+ */
+#define OMNI_PLANNER_ES_PARAM , struct ExplainState *es
+/**
+ * Forwards the parameter declared by `OMNI_PLANNER_ES_PARAM`
+ */
+#define OMNI_PLANNER_ES_ARG , es
+#else
+#define OMNI_PLANNER_ES_PARAM
+#define OMNI_PLANNER_ES_ARG
+#endif
+
+/**
+ * Planner hook
+ *
+ * NOTE: on Postgres major 19 and above, the hook also receives `es`
+ * (see `OMNI_PLANNER_ES_PARAM`)
+ */
 typedef void (*omni_hook_planner_t)(omni_hook_handle *handle, Query *parse,
                                     const char *query_string, int cursorOptions,
-                                    ParamListInfo boundParams);
+                                    ParamListInfo boundParams OMNI_PLANNER_ES_PARAM);
 typedef void (*omni_hook_executor_start_t)(omni_hook_handle *handle, QueryDesc *queryDesc,
                                            int eflags);
 /**
