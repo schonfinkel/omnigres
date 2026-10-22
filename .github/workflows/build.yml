@@ -22,7 +22,7 @@ jobs:
     continue-on-error: ${{ matrix.pgver == 'master' }}
     strategy:
       matrix:
-        pgver: [ 18, 17, 16, 15, 14, master ]
+        pgver: [ 19, 18, 17, 16, 15, 14, master ]
         os: [ ubuntu-24.04, macos-14 ]
         build_type: [Debug, Release]
         exclude:

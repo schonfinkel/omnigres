@@ -63,6 +63,7 @@ if(NOT DEFINED PG_CONFIG)
     endif()
 
     # If the version is not known, try resolving the alias
+    set(PGVER_ALIAS_19 19beta4)
     set(PGVER_ALIAS_18 18.0)
     set(PGVER_ALIAS_17 17.6)
     set(PGVER_ALIAS_16 16.10)
