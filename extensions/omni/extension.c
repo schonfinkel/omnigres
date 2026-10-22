@@ -9,6 +9,7 @@
 #include <commands/extension.h>
 #include <executor/executor.h>
 #include <miscadmin.h>
+#include <storage/fd.h>
 #if PG_MAJORVERSION_NUM >= 16
 #include <utils/conffiles.h>
 #else
