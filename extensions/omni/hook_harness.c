@@ -192,14 +192,12 @@ MODULE_FUNCTION void omni_executor_run_hook(QueryDesc *queryDesc, ScanDirection 
                                             bool execute_once
 #endif
 ) {
-
-  iterate_hooks(executor_run, queryDesc, direction, count,
-#if PG_MAJORVERSION_NUM < 18
-                execute_once
-#else
-                true
+#if PG_MAJORVERSION_NUM >= 18
+  // Postgres 18 removed `execute_once`; omni's hook API keeps it, always `true`
+  bool execute_once = true;
 #endif
-  );
+
+  iterate_hooks(executor_run, queryDesc, direction, count, execute_once);
 }
 
 MODULE_FUNCTION void omni_executor_finish_hook(QueryDesc *queryDesc) {
