@@ -8948,7 +8948,7 @@ template <> struct datum_conversion<std::string> : default_datum_conversion<std:
 
 template <> struct datum_conversion<const char *> : default_datum_conversion<const char *> {
   static const char *from_datum(const datum &d, oid, std::optional<memory_context> ctx) {
-    return DatumGetPointer(d);
+    return static_cast<const char *>(DatumGetPointer(d));
   }
 
   static datum into_datum(const char *const &t) { return datum(PointerGetDatum(t)); }
@@ -8957,7 +8957,7 @@ template <> struct datum_conversion<const char *> : default_datum_conversion<con
 template <std::size_t N>
 struct datum_conversion<char[N]> : default_datum_conversion<char[N], const char *> {
   static const char *from_datum(const datum &d, oid, std::optional<memory_context> ctx) {
-    return DatumGetPointer(d);
+    return static_cast<const char *>(DatumGetPointer(d));
   }
 
   static datum into_datum(const char (&t)[N]) { return datum(PointerGetDatum(t)); }
@@ -11508,7 +11508,11 @@ node_mapping(AlterDatabaseRefreshCollStmt);
 node_mapping(AlterDatabaseSetStmt);
 node_mapping(DropdbStmt);
 node_mapping(AlterSystemStmt);
+#if PG_MAJORVERSION_NUM < 19
 node_mapping(ClusterStmt);
+#else
+node_mapping(RepackStmt);
+#endif
 node_mapping(VacuumStmt);
 node_mapping(VacuumRelation);
 node_mapping(ExplainStmt);
@@ -11680,7 +11684,11 @@ node_mapping(ExprContext);
 node_mapping(ReturnSetInfo);
 node_mapping(ProjectionInfo);
 node_mapping(JunkFilter);
+#if PG_MAJORVERSION_NUM < 19
 node_mapping(OnConflictSetState);
+#else
+node_mapping(OnConflictActionState);
+#endif
 #if PG_MAJORVERSION_NUM >= 15
 node_mapping(MergeActionState);
 #endif
@@ -12098,7 +12106,11 @@ node_dispatch(AlterDatabaseRefreshCollStmt);
 node_dispatch(AlterDatabaseSetStmt);
 node_dispatch(DropdbStmt);
 node_dispatch(AlterSystemStmt);
+#if PG_MAJORVERSION_NUM < 19
 node_dispatch(ClusterStmt);
+#else
+node_dispatch(RepackStmt);
+#endif
 node_dispatch(VacuumStmt);
 node_dispatch(VacuumRelation);
 node_dispatch(ExplainStmt);
@@ -12270,7 +12282,11 @@ node_dispatch(ExprContext);
 node_dispatch(ReturnSetInfo);
 node_dispatch(ProjectionInfo);
 node_dispatch(JunkFilter);
+#if PG_MAJORVERSION_NUM < 19
 node_dispatch(OnConflictSetState);
+#else
+node_dispatch(OnConflictActionState);
+#endif
 #if PG_MAJORVERSION_NUM >= 15
 node_dispatch(MergeActionState);
 #endif
