@@ -157,7 +157,7 @@ void prepare_share_fd() {
 }
 
 static volatile bool shutdown_worker = false;
-void worker_shutdown() {
+void worker_shutdown(SIGNAL_ARGS) {
   shutdown_worker = true;
   close(socket_fd);
 }
@@ -171,9 +171,13 @@ void worker_shutdown() {
 static volatile bool worker_reload = true;
 
 static pqsigfunc sigusr1_original_handler;
-static void sigusr1_handler(int signo) {
+static void sigusr1_handler(SIGNAL_ARGS) {
   if (sigusr1_original_handler != NULL) {
-    sigusr1_original_handler(signo);
+#if PG_MAJORVERSION_NUM >= 19
+    sigusr1_original_handler(postgres_signal_arg, pg_siginfo);
+#else
+    sigusr1_original_handler(postgres_signal_arg);
+#endif
   }
   if (notifyInterruptPending) {
     worker_reload = true;

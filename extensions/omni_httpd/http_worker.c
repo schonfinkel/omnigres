@@ -192,7 +192,7 @@ static void on_message(h2o_multithread_receiver_t *receiver, h2o_linklist_t *mes
   }
 }
 
-static void sigusr2() {
+static void sigusr2(SIGNAL_ARGS) {
   atomic_store(&worker_reload, true);
   h2o_multithread_send_message(&event_loop_receiver, NULL);
   h2o_multithread_send_message(&handler_receiver, NULL);
@@ -202,7 +202,7 @@ static int exit_code = 0;
 
 SPIPlanPtr router_query;
 
-static void sigterm() {
+static void sigterm(SIGNAL_ARGS) {
   atomic_store(&worker_running, false);
   // master_worker sets semaphore to INT32_MAX to signal normal termination
   // NULL semaphore means we're not being started anymore
