@@ -35,6 +35,7 @@
 #include <postgres.h>
 #include <fmgr.h>
 // clang-format on
+#include <catalog/pg_type.h>
 #include <common/hashfn.h>
 #include <mb/pg_wchar.h>
 #include <miscadmin.h>
@@ -42,6 +43,7 @@
 #include <utils/array.h>
 #include <utils/builtins.h>
 #include <utils/memutils.h>
+#include <utils/tuplestore.h>
 #if PG_MAJORVERSION_NUM >= 16
 #include <varatt.h>
 #endif

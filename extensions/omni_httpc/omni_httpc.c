@@ -18,6 +18,7 @@
 #include <miscadmin.h>
 #include <utils/array.h>
 #include <utils/builtins.h>
+#include <utils/tuplestore.h>
 
 #include <h2o.h>
 

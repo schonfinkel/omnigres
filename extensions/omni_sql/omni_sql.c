@@ -14,6 +14,7 @@
 #include <utils/jsonb.h>
 #include <utils/lsyscache.h>
 #include <utils/syscache.h>
+#include <utils/tuplestore.h>
 
 #include "nodes/pg_list.h"
 #include "omni_sql.h"

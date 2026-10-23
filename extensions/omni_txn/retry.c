@@ -8,9 +8,8 @@
 #include <tcop/pquery.h>
 #include <utils/builtins.h>
 #include <utils/snapmgr.h>
-#if PG_MAJORVERSION_NUM < 17
+#include <utils/tuplestore.h>
 #include <utils/typcache.h>
-#endif
 #if PG_MAJORVERSION_NUM < 15
 #include <access/xact.h>
 #endif

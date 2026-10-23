@@ -21,9 +21,11 @@
 #include <storage/predicate.h>
 #include <utils/fmgroids.h>
 #include <utils/fmgrprotos.h>
+#include <utils/hsearch.h>
 #include <utils/rel.h>
 #include <utils/snapmgr.h>
 #include <utils/syscache.h>
+#include <utils/tuplestore.h>
 #include <utils/uuid.h>
 
 #include <omni/omni_v0.h>

@@ -18,6 +18,7 @@ extern "C" {
 
 #include <nodes/execnodes.h>
 #include <utils/builtins.h>
+#include <utils/tuplestore.h>
 
 #include "urlpattern.h"
 }

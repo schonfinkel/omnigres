@@ -3,6 +3,7 @@
  *
  */
 
+#include <dirent.h>
 #include <sys/stat.h>
 
 // clang-format off
@@ -19,6 +20,7 @@
 #include <utils/builtins.h>
 #include <utils/syscache.h>
 #include <utils/timestamp.h>
+#include <utils/tuplestore.h>
 
 #include "pg_path.h"
 

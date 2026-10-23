@@ -8,6 +8,7 @@
 #include <nodes/execnodes.h>
 #include <miscadmin.h>
 #include <utils/builtins.h>
+#include <utils/tuplestore.h>
 #include <sys/stat.h>
 // clang-format on
 
