@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.4] - 2026-10-23
+
+### Fixed
+
+* Build against Postgres 19beta4 (`CLUSTER`/`REPACK` now parse into `RepackStmt`, `ALTER SUBSCRIPTION ... REFRESH SEQUENCES`)
+* Deparsing silently dropped Postgres 19 `ON CONFLICT ... DO SELECT`, `ALL TABLES EXCEPT`, `ALL SEQUENCES` and `SERVER` subscriptions
+* `statement_type` fails for `CLUSTER` on Postgres 19; it is still `ClusterStmt`, and `REPACK` is `RepackStmt`
+
 ## [0.5.3] - 2025-09-05
 
 ### Fixed

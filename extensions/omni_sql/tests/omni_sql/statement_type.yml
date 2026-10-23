@@ -26,3 +26,17 @@ tests:
 - query: select omni_sql.statement_type('update tab set col = 1'::omni_sql.statement)
   results:
   - statement_type: UpdateStmt
+
+- query: select omni_sql.statement_type('cluster t'::omni_sql.statement)
+  results:
+  - statement_type: ClusterStmt
+
+# The input is picked at run time, so majors before 19 never parse it
+- query: |
+    select omni_sql.statement_type((case when current_setting('server_version_num')::int >= 190000
+                                         then 'repack t' end)::omni_sql.statement)
+           is not distinct from
+           case when current_setting('server_version_num')::int >= 190000
+                then 'RepackStmt' end::omni_sql.statement_type as ok
+  results:
+  - ok: true

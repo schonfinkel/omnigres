@@ -533,9 +533,28 @@ Datum statement_type(PG_FUNCTION_ARGS) {
     case T_AlterSystemStmt:
       val = "AlterSystemStmt";
       break;
+#if PG_MAJORVERSION_NUM < 19
     case T_ClusterStmt:
       val = "ClusterStmt";
       break;
+#else
+    // Postgres 19 parses both CLUSTER and REPACK into RepackStmt
+    case T_RepackStmt: {
+      RepackStmt *repack = castNode(RepackStmt, lfirst_node(RawStmt, lc)->stmt);
+      switch (repack->command) {
+      case REPACK_COMMAND_CLUSTER:
+        val = "ClusterStmt"; // same as before 19
+        break;
+      case REPACK_COMMAND_REPACK:
+        val = "RepackStmt";
+        break;
+      case REPACK_COMMAND_VACUUMFULL: // only built internally by VACUUM FULL
+      default:
+        elog(ERROR, "unrecognized repack command: %d", (int)repack->command);
+      }
+      break;
+    }
+#endif
     case T_VacuumStmt:
       val = "VacuumStmt";
       break;
