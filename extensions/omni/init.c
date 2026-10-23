@@ -10,6 +10,7 @@
 #include <optimizer/planner.h>
 #include <storage/ipc.h>
 #include <storage/lwlock.h>
+#include <storage/proc.h>
 #include <storage/shmem.h>
 #include <utils/inval.h>
 #include <utils/memutils.h>
@@ -268,8 +269,11 @@ static void bgw_first_xact(XactEvent event, void *arg) {
 }
 
 MODULE_FUNCTION void init_backend(void *arg) {
-  if (MyBackendType == B_INVALID) {
-    // It could be a background worker, but we don't know yet, let this call back figure this out
+  // A background worker deletes PostmasterContext before InitProcess(), so it is too early
+  // to take a snapshot. Before Postgres 19, MyBackendType is still B_INVALID at that point;
+  // since 19, postmaster_child_launch() sets it right after fork, so check MyProc as well.
+  if (MyBackendType == B_INVALID || (MyBackendType == B_BG_WORKER && MyProc == NULL)) {
+    // Too early to load modules here, let this call back do it in the first transaction
     RegisterXactCallback(bgw_first_xact, NULL);
     return;
   }

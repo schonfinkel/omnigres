@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.15] - 2026-10-23
+
+### Fixed
+
+* Crash of every background worker on Postgres 19 when `omni` is preloaded
+* Build against Postgres 19 (planner hook now receives `ExplainState`)
+
 ## [0.2.14] - 2025-09-04
 
 ### Fixed
