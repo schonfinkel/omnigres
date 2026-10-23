@@ -712,8 +712,10 @@ Datum http_execute(PG_FUNCTION_ARGS) {
     // Request body
     Datum arg_request_body = GetAttributeByName(arg_request, "body", &isnull);
     if (!isnull) {
-      struct varlena *varlena = PG_DETOAST_DATUM_PACKED(arg_request_body);
-      request->request_body = h2o_iovec_init(VARDATA_ANY(varlena), VARSIZE_ANY_EXHDR(varlena));
+      // Not named `varlena`: on Postgres 19 that shadows the `varlena` typedef
+      // used by PG_DETOAST_DATUM_PACKED within this very initializer
+      struct varlena *body = PG_DETOAST_DATUM_PACKED(arg_request_body);
+      request->request_body = h2o_iovec_init(VARDATA_ANY(body), VARSIZE_ANY_EXHDR(body));
     } else {
       request->request_body = h2o_iovec_init(NULL, 0);
     }
