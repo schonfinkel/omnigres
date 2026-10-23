@@ -3721,6 +3721,27 @@ static void deparseInferClause(StringInfo str, InferClause *infer_clause) {
   removeTrailingSpace(str);
 }
 
+// omnigres addition, keep when regenerating from libpg_query.
+// Shared by SELECT ... FOR and ON CONFLICT DO SELECT; LCS_NONE appends nothing.
+static void deparseLockClauseStrength(StringInfo str, LockClauseStrength strength) {
+  switch (strength) {
+  case LCS_NONE:
+    break;
+  case LCS_FORKEYSHARE:
+    appendStringInfoString(str, "FOR KEY SHARE ");
+    break;
+  case LCS_FORSHARE:
+    appendStringInfoString(str, "FOR SHARE ");
+    break;
+  case LCS_FORNOKEYUPDATE:
+    appendStringInfoString(str, "FOR NO KEY UPDATE ");
+    break;
+  case LCS_FORUPDATE:
+    appendStringInfoString(str, "FOR UPDATE ");
+    break;
+  }
+}
+
 static void deparseOnConflictClause(StringInfo str, OnConflictClause *on_conflict_clause) {
   ListCell *lc;
 
@@ -3740,6 +3761,11 @@ static void deparseOnConflictClause(StringInfo str, OnConflictClause *on_conflic
     break;
   case ONCONFLICT_UPDATE:
     appendStringInfoString(str, "DO UPDATE ");
+    break;
+  // omnigres addition, keep when regenerating from libpg_query
+  case ONCONFLICT_SELECT:
+    appendStringInfoString(str, "DO SELECT ");
+    deparseLockClauseStrength(str, on_conflict_clause->lockStrength);
     break;
   }
 
@@ -3902,24 +3928,9 @@ static void deparseDeleteStmt(StringInfo str, DeleteStmt *delete_stmt) {
 static void deparseLockingClause(StringInfo str, LockingClause *locking_clause) {
   ListCell *lc;
 
-  switch (locking_clause->strength) {
-  case LCS_NONE:
-    /* no such clause - only used in PlanRowMark */
-    Assert(false);
-    break;
-  case LCS_FORKEYSHARE:
-    appendStringInfoString(str, "FOR KEY SHARE ");
-    break;
-  case LCS_FORSHARE:
-    appendStringInfoString(str, "FOR SHARE ");
-    break;
-  case LCS_FORNOKEYUPDATE:
-    appendStringInfoString(str, "FOR NO KEY UPDATE ");
-    break;
-  case LCS_FORUPDATE:
-    appendStringInfoString(str, "FOR UPDATE ");
-    break;
-  }
+  /* LCS_NONE: no such clause - only used in PlanRowMark */
+  Assert(locking_clause->strength != LCS_NONE);
+  deparseLockClauseStrength(str, locking_clause->strength);
 
   if (list_length(locking_clause->lockedRels) > 0) {
     appendStringInfoString(str, "OF ");
@@ -6528,9 +6539,25 @@ static void deparseDropdbStmt(StringInfo str, DropdbStmt *dropdb_stmt) {
   removeTrailingSpace(str);
 }
 
+// omnigres addition, keep when regenerating from libpg_query.
+// Shared by VACUUM/ANALYZE and REPACK/CLUSTER: `relation [ (column [, ...]) ]`
+static void deparseVacuumRelation(StringInfo str, VacuumRelation *rel) {
+  deparseRangeVar(str, rel->relation, DEPARSE_NODE_CONTEXT_NONE);
+  if (list_length(rel->va_cols) > 0) {
+    ListCell *lc = NULL;
+
+    appendStringInfoChar(str, '(');
+    foreach (lc, rel->va_cols) {
+      appendStringInfoString(str, quote_identifier(strVal(lfirst(lc))));
+      if (lnext(rel->va_cols, lc))
+        appendStringInfoString(str, ", ");
+    }
+    appendStringInfoChar(str, ')');
+  }
+}
+
 static void deparseVacuumStmt(StringInfo str, VacuumStmt *vacuum_stmt) {
   ListCell *lc = NULL;
-  ListCell *lc2 = NULL;
 
   if (vacuum_stmt->is_vacuumcmd)
     appendStringInfoString(str, "VACUUM ");
@@ -6540,19 +6567,7 @@ static void deparseVacuumStmt(StringInfo str, VacuumStmt *vacuum_stmt) {
   deparseUtilityOptionList(str, vacuum_stmt->options);
 
   foreach (lc, vacuum_stmt->rels) {
-    Assert(IsA(lfirst(lc), VacuumRelation));
-    VacuumRelation *rel = castNode(VacuumRelation, lfirst(lc));
-
-    deparseRangeVar(str, rel->relation, DEPARSE_NODE_CONTEXT_NONE);
-    if (list_length(rel->va_cols) > 0) {
-      appendStringInfoChar(str, '(');
-      foreach (lc2, rel->va_cols) {
-        appendStringInfoString(str, quote_identifier(strVal(lfirst(lc2))));
-        if (lnext(rel->va_cols, lc2))
-          appendStringInfoString(str, ", ");
-      }
-      appendStringInfoChar(str, ')');
-    }
+    deparseVacuumRelation(str, castNode(VacuumRelation, lfirst(lc)));
 
     if (lnext(vacuum_stmt->rels, lc))
       appendStringInfoString(str, ", ");
@@ -8201,6 +8216,10 @@ static void deparsePublicationObjectList(StringInfo str, List *pubobjects) {
       }
 
       break;
+    // omnigres addition, keep when regenerating from libpg_query
+    case PUBLICATIONOBJ_EXCEPT_TABLE:
+      deparseRangeVar(str, obj->pubtable->relation, DEPARSE_NODE_CONTEXT_NONE);
+      break;
     case PUBLICATIONOBJ_TABLES_IN_SCHEMA:
       appendStringInfoString(str, "TABLES IN SCHEMA ");
       appendStringInfoString(str, quote_identifier(obj->name));
@@ -8220,6 +8239,28 @@ static void deparsePublicationObjectList(StringInfo str, List *pubobjects) {
   }
 }
 
+// omnigres addition, keep when regenerating from libpg_query.
+// `ALL TABLES [EXCEPT (TABLE ...)] [, ALL SEQUENCES]`; with ALL TABLES, `pubobjects` holds only
+// the excepted tables.
+static void deparsePublicationAllObjects(StringInfo str, bool all_tables, bool all_sequences,
+                                         List *pubobjects) {
+  if (all_tables) {
+    appendStringInfoString(str, "ALL TABLES ");
+    if (list_length(pubobjects) > 0) {
+      appendStringInfoString(str, "EXCEPT (TABLE ");
+      deparsePublicationObjectList(str, pubobjects);
+      appendStringInfoString(str, ") ");
+    }
+  }
+  if (all_sequences) {
+    if (all_tables) {
+      removeTrailingSpace(str);
+      appendStringInfoString(str, ", ");
+    }
+    appendStringInfoString(str, "ALL SEQUENCES ");
+  }
+}
+
 static void deparseCreatePublicationStmt(StringInfo str,
                                          CreatePublicationStmt *create_publication_stmt) {
   ListCell *lc = NULL;
@@ -8228,12 +8269,15 @@ static void deparseCreatePublicationStmt(StringInfo str,
   appendStringInfoString(str, quote_identifier(create_publication_stmt->pubname));
   appendStringInfoChar(str, ' ');
 
-  if (list_length(create_publication_stmt->pubobjects) > 0) {
+  if (create_publication_stmt->for_all_tables || create_publication_stmt->for_all_sequences) {
+    appendStringInfoString(str, "FOR ");
+    deparsePublicationAllObjects(str, create_publication_stmt->for_all_tables,
+                                 create_publication_stmt->for_all_sequences,
+                                 create_publication_stmt->pubobjects);
+  } else if (list_length(create_publication_stmt->pubobjects) > 0) {
     appendStringInfoString(str, "FOR ");
     deparsePublicationObjectList(str, create_publication_stmt->pubobjects);
     appendStringInfoChar(str, ' ');
-  } else if (create_publication_stmt->for_all_tables) {
-    appendStringInfoString(str, "FOR ALL TABLES ");
   }
 
   deparseOptDefinition(str, create_publication_stmt->options);
@@ -8246,7 +8290,13 @@ static void deparseAlterPublicationStmt(StringInfo str,
   deparseColId(str, alter_publication_stmt->pubname);
   appendStringInfoChar(str, ' ');
 
-  if (list_length(alter_publication_stmt->pubobjects) > 0) {
+  if (alter_publication_stmt->for_all_tables || alter_publication_stmt->for_all_sequences) {
+    appendStringInfoString(str, "SET ");
+    deparsePublicationAllObjects(str, alter_publication_stmt->for_all_tables,
+                                 alter_publication_stmt->for_all_sequences,
+                                 alter_publication_stmt->pubobjects);
+    removeTrailingSpace(str);
+  } else if (list_length(alter_publication_stmt->pubobjects) > 0) {
     switch (alter_publication_stmt->action) {
     case AP_SetObjects:
       appendStringInfoString(str, "SET ");
@@ -8704,11 +8754,17 @@ static void deparseCreateSubscriptionStmt(StringInfo str,
   appendStringInfoString(str, "CREATE SUBSCRIPTION ");
   appendStringInfoString(str, quote_identifier(create_subscription_stmt->subname));
 
-  appendStringInfoString(str, " CONNECTION ");
-  if (create_subscription_stmt->conninfo != NULL)
-    deparseStringLiteral(str, create_subscription_stmt->conninfo);
-  else
-    appendStringInfoString(str, "''");
+  // omnigres addition (SERVER), keep when regenerating from libpg_query
+  if (create_subscription_stmt->servername != NULL) {
+    appendStringInfoString(str, " SERVER ");
+    appendStringInfoString(str, quote_identifier(create_subscription_stmt->servername));
+  } else {
+    appendStringInfoString(str, " CONNECTION ");
+    if (create_subscription_stmt->conninfo != NULL)
+      deparseStringLiteral(str, create_subscription_stmt->conninfo);
+    else
+      appendStringInfoString(str, "''");
+  }
 
   appendStringInfoString(str, " PUBLICATION ");
 
@@ -8745,9 +8801,19 @@ static void deparseAlterSubscriptionStmt(StringInfo str,
     deparseStringLiteral(str, alter_subscription_stmt->conninfo);
     appendStringInfoChar(str, ' ');
     break;
-  case ALTER_SUBSCRIPTION_REFRESH:
+  // omnigres addition (SERVER and the 19beta4 REFRESH split), keep when regenerating from
+  // libpg_query
+  case ALTER_SUBSCRIPTION_SERVER:
+    appendStringInfoString(str, "SERVER ");
+    appendStringInfoString(str, quote_identifier(alter_subscription_stmt->servername));
+    appendStringInfoChar(str, ' ');
+    break;
+  case ALTER_SUBSCRIPTION_REFRESH_PUBLICATION:
     appendStringInfoString(str, "REFRESH PUBLICATION ");
     deparseOptDefinition(str, alter_subscription_stmt->options);
+    break;
+  case ALTER_SUBSCRIPTION_REFRESH_SEQUENCES:
+    appendStringInfoString(str, "REFRESH SEQUENCES ");
     break;
   case ALTER_SUBSCRIPTION_ADD_PUBLICATION:
     appendStringInfoString(str, "ADD PUBLICATION ");
@@ -9503,20 +9569,41 @@ static void deparseGroupingFunc(StringInfo str, GroupingFunc *grouping_func) {
   appendStringInfoChar(str, ')');
 }
 
-static void deparseClusterStmt(StringInfo str, ClusterStmt *cluster_stmt) {
-  appendStringInfoString(str, "CLUSTER ");
+// Postgres 19 parses both CLUSTER and REPACK into RepackStmt
+// omnigres addition, keep when regenerating from libpg_query
+static void deparseRepackStmt(StringInfo str, RepackStmt *repack_stmt) {
+  switch (repack_stmt->command) {
+  case REPACK_COMMAND_CLUSTER:
+    appendStringInfoString(str, "CLUSTER ");
+    break;
+  case REPACK_COMMAND_REPACK:
+    appendStringInfoString(str, "REPACK ");
+    break;
+  case REPACK_COMMAND_VACUUMFULL: // only built internally by VACUUM FULL
+  default:
+    elog(ERROR, "deparse: unpermitted repack command: %d", (int)repack_stmt->command);
+    break;
+  }
 
-  deparseUtilityOptionList(str, cluster_stmt->params);
+  deparseUtilityOptionList(str, repack_stmt->params);
 
-  if (cluster_stmt->relation != NULL) {
-    deparseRangeVar(str, cluster_stmt->relation, DEPARSE_NODE_CONTEXT_NONE);
+  if (repack_stmt->relation != NULL) {
+    deparseVacuumRelation(str, repack_stmt->relation);
     appendStringInfoChar(str, ' ');
   }
 
-  if (cluster_stmt->indexname != NULL) {
-    appendStringInfoString(str, "USING ");
-    appendStringInfoString(str, quote_identifier(cluster_stmt->indexname));
-    appendStringInfoChar(str, ' ');
+  if (repack_stmt->command == REPACK_COMMAND_CLUSTER) {
+    if (repack_stmt->indexname != NULL) {
+      appendStringInfoString(str, "USING ");
+      appendStringInfoString(str, quote_identifier(repack_stmt->indexname));
+      appendStringInfoChar(str, ' ');
+    }
+  } else if (repack_stmt->usingindex) {
+    appendStringInfoString(str, "USING INDEX ");
+    if (repack_stmt->indexname != NULL) {
+      appendStringInfoString(str, quote_identifier(repack_stmt->indexname));
+      appendStringInfoChar(str, ' ');
+    }
   }
 
   removeTrailingSpace(str);
@@ -9798,8 +9885,8 @@ static void deparseStmt(StringInfo str, Node *node) {
   case T_ClosePortalStmt:
     deparseClosePortalStmt(str, castNode(ClosePortalStmt, node));
     break;
-  case T_ClusterStmt:
-    deparseClusterStmt(str, castNode(ClusterStmt, node));
+  case T_RepackStmt:
+    deparseRepackStmt(str, castNode(RepackStmt, node));
     break;
   case T_CommentStmt:
     deparseCommentStmt(str, castNode(CommentStmt, node));

@@ -51,6 +51,62 @@ tests:
   results:
     - statement: "SELECT * FROM t WHERE v <> 1"
 
+- name: deparse cluster
+  query: |
+    select 'cluster t using t_idx'::omni_sql.statement
+  results:
+    - statement: "CLUSTER t USING t_idx"
+
+- name: deparse cluster with options
+  query: |
+    select 'cluster (verbose) t'::omni_sql.statement
+  results:
+    - statement: "CLUSTER (VERBOSE) t"
+
+# The input is picked at run time, so majors before 19 never parse it
+- name: deparse repack
+  query: |
+    select (case when current_setting('server_version_num')::int >= 190000
+                 then 'repack (verbose) t (a) using index t_idx' end)::omni_sql.statement::text
+           is not distinct from
+           case when current_setting('server_version_num')::int >= 190000
+                then 'REPACK (VERBOSE) t(a) USING INDEX t_idx' end as ok
+  results:
+    - ok: true
+
+- name: deparse refresh sequences
+  query: |
+    select (case when current_setting('server_version_num')::int >= 190000
+                 then 'alter subscription s refresh sequences' end)::omni_sql.statement::text
+           is not distinct from
+           case when current_setting('server_version_num')::int >= 190000
+                then 'ALTER SUBSCRIPTION s REFRESH SEQUENCES' end as ok
+  results:
+    - ok: true
+
+# Lists the inputs that deparse differently; empty before 19
+- name: deparse Postgres 19 syntax
+  query: |
+    select array_agg(input) filter (
+             where (case when current_setting('server_version_num')::int >= 190000
+                         then input end)::omni_sql.statement::text <> expected) as mismatches
+    from (values
+      ('insert into t values (1) on conflict (a) do select returning *',
+       'INSERT INTO t VALUES (1) ON CONFLICT (a) DO SELECT RETURNING *'),
+      ('insert into t values (1) on conflict (a) do select for update where t.a > 0 returning *',
+       'INSERT INTO t VALUES (1) ON CONFLICT (a) DO SELECT FOR UPDATE WHERE t.a > 0 RETURNING *'),
+      ('create publication p for all tables except (table a, only b)',
+       'CREATE PUBLICATION p FOR ALL TABLES EXCEPT (TABLE a, ONLY b)'),
+      ('create publication p for all tables, all sequences',
+       'CREATE PUBLICATION p FOR ALL TABLES, ALL SEQUENCES'),
+      ('alter publication p set all sequences', 'ALTER PUBLICATION p SET ALL SEQUENCES'),
+      ('create subscription s server srv publication p',
+       'CREATE SUBSCRIPTION s SERVER srv PUBLICATION p'),
+      ('alter subscription s server srv', 'ALTER SUBSCRIPTION s SERVER srv')
+    ) as v(input, expected)
+  results:
+    - mismatches: null
+
 - name: parameterized
   query: |
     select omni_sql.is_parameterized('SELECT $1')
